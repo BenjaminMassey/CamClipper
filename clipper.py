@@ -23,7 +23,7 @@ audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=a
 def save_button_pressed():
     return keyboard.is_pressed('x')
 
-def save_last_minute(webcam, audio_stream):
+def clip_loop(webcam, audio_stream):
     global seconds_to_save, audio_rate, audio_buffer
     
     # Initialize variables to store the last minute of video and audio
@@ -93,7 +93,7 @@ def save_last_minute(webcam, audio_stream):
 print("Finished initializing: taking running video")
 
 # Start the webcam and audio stream
-save_last_minute(webcam, audio_stream)
+clip_loop(webcam, audio_stream)
 
 # Release the webcam and audio stream
 webcam.release()
