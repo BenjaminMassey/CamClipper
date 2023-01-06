@@ -5,8 +5,8 @@ import keyboard
 from datetime import datetime
 import wave
 import ffmpeg
-#import os
 import subprocess
+from sys import platform as system_platform
 
 # Want to print this at end, so global
 filename = ""
@@ -75,8 +75,10 @@ def save_last_minute(webcam, audio_stream):
             ffmpeg.concat(video_temp, audio_temp, v=1, a=1).output("./" + filename + ".mp4").run(overwrite_output=True)
 
             # Cleanup temp files
-            mycommand = "del *TEMP*"
-            subprocess.call(mycommand, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            removecmd = "rm *TEMP*"
+            if system_platform == "win32":
+                removecmd = "del *TEMP*"
+            subprocess.call(removecmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
             
             break
 
