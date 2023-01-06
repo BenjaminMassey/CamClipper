@@ -3,6 +3,7 @@ import numpy as np
 import pyaudio
 import keyboard
 from datetime import datetime
+import wave
 
 # Want to print this at end, so global
 filename = ""
@@ -31,7 +32,7 @@ def save_last_minute(webcam, audio_stream):
         audio_samples.append(np.frombuffer(audio_data, np.int16))
         
         # If we have more than 60 seconds of video and audio, remove the oldest frame and audio sample
-        if len(video_frames) > 60 * webcam.get(cv2.CAP_PROP_FPS):# and len(audio_samples) > 60 * audio_stream.get_sample_rate():
+        if len(video_frames) > 60 * webcam.get(cv2.CAP_PROP_FPS):
             video_frames.pop(0)
             audio_samples.pop(0)
         
@@ -41,20 +42,32 @@ def save_last_minute(webcam, audio_stream):
             now = datetime.now()
             dt_string = now.strftime("%d-%m-%Y %H-%M-%S")
             global filename
-            filename = "Clip " + dt_string + ".mp4"
+            filename = "Clip " + dt_string
             
             # Initialize the video writer
             fourcc = cv2.VideoWriter_fourcc('F','M','P','4')
-            output_file = cv2.VideoWriter(filename, fourcc, webcam.get(cv2.CAP_PROP_FPS),
+            video_file = cv2.VideoWriter(filename + ".mp4", fourcc, webcam.get(cv2.CAP_PROP_FPS),
                                           (int(webcam.get(cv2.CAP_PROP_FRAME_WIDTH)), int(webcam.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
             
-            # Save the last minute of video and audio to the output file
+            # Save the last minute of video to the output file
             for frame in video_frames:
-                output_file.write(frame)
+                video_file.write(frame)
+
+            # Initialize the audio file
+            audio_file = wave.open(filename + ".wav", "w")
+            audio_file.setnframes(len(audio_samples))
+            audio_file.setnchannels(1)
+            audio_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+            audio_file.setframerate(44100)
+
+            # Save the last minute of audio to the output file
+            np_audio = np.array(audio_samples, dtype=np.int16)
+            audio_file.writeframes(np_audio)
 
             # Done :)
-            output_file.release()
+            video_file.release()
+            audio_file.close()
             break
 
 # Inform of capturing
