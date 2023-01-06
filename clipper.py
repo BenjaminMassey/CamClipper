@@ -8,17 +8,24 @@ import ffmpeg
 import subprocess
 from sys import platform as system_platform
 
+# Global variables
+seconds_to_save = 60
+audio_rate = 44100
+audio_buffer = 1024
+
 # Want to print this at end, so global
 filename = ""
 
 # Initialize the webcam and audio stream
 webcam = cv2.VideoCapture(0)
-audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
+audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
 
 def save_button_pressed():
     return keyboard.is_pressed('x')
 
 def save_last_minute(webcam, audio_stream):
+    global seconds_to_save, audio_rate, audio_buffer
+    
     # Initialize variables to store the last minute of video and audio
     video_frames = []
     audio_samples = []
@@ -28,14 +35,14 @@ def save_last_minute(webcam, audio_stream):
         # Get the current frame and audio sample from the webcam feed
         ret, frame = webcam.read()
         assert ret
-        audio_data = audio_stream.read(1024)
+        audio_data = audio_stream.read(audio_buffer)
         
         # Add the frame and audio sample to their respective lists
         video_frames.append(frame)
         audio_samples.append(np.frombuffer(audio_data, np.int16))
         
         # If we have more than 60 seconds of video and audio, remove the oldest frame and audio sample
-        if len(video_frames) > 60 * webcam.get(cv2.CAP_PROP_FPS):
+        if len(video_frames) > seconds_to_save * webcam.get(cv2.CAP_PROP_FPS):
             video_frames.pop(0)
             audio_samples.pop(0)
         
@@ -62,7 +69,7 @@ def save_last_minute(webcam, audio_stream):
             audio_file.setnframes(len(audio_samples))
             audio_file.setnchannels(1)
             audio_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
-            audio_file.setframerate(44100)
+            audio_file.setframerate(audio_rate)
 
             # Save the last minute of audio to the output file
             np_audio = np.array(audio_samples, dtype=np.int16)
