@@ -4,6 +4,9 @@ import pyaudio
 import keyboard
 from datetime import datetime
 import wave
+import ffmpeg
+#import os
+import subprocess
 
 # Want to print this at end, so global
 filename = ""
@@ -46,16 +49,16 @@ def save_last_minute(webcam, audio_stream):
             
             # Initialize the video writer
             fourcc = cv2.VideoWriter_fourcc('F','M','P','4')
-            video_file = cv2.VideoWriter(filename + ".mp4", fourcc, webcam.get(cv2.CAP_PROP_FPS),
+            video_file = cv2.VideoWriter(filename + " TEMP.mp4", fourcc, webcam.get(cv2.CAP_PROP_FPS),
                                           (int(webcam.get(cv2.CAP_PROP_FRAME_WIDTH)), int(webcam.get(cv2.CAP_PROP_FRAME_HEIGHT))))
 
-            
             # Save the last minute of video to the output file
             for frame in video_frames:
                 video_file.write(frame)
+            video_file.release()
 
             # Initialize the audio file
-            audio_file = wave.open(filename + ".wav", "w")
+            audio_file = wave.open(filename + " TEMP.wav", "w")
             audio_file.setnframes(len(audio_samples))
             audio_file.setnchannels(1)
             audio_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
@@ -64,10 +67,17 @@ def save_last_minute(webcam, audio_stream):
             # Save the last minute of audio to the output file
             np_audio = np.array(audio_samples, dtype=np.int16)
             audio_file.writeframes(np_audio)
-
-            # Done :)
-            video_file.release()
             audio_file.close()
+            
+            # Combine the video and audio into a single file
+            video_temp = ffmpeg.input("./" + filename + " TEMP.mp4")
+            audio_temp = ffmpeg.input("./" + filename + " TEMP.wav")
+            ffmpeg.concat(video_temp, audio_temp, v=1, a=1).output("./" + filename + ".mp4").run(overwrite_output=True)
+
+            # Cleanup temp files
+            mycommand = "del *TEMP*"
+            subprocess.call(mycommand, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            
             break
 
 # Inform of capturing
