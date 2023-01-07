@@ -1,30 +1,26 @@
+# Libraries
 import cv2
 import numpy as np
 import pyaudio
-import keyboard
 from datetime import datetime
 import wave
 import ffmpeg
 import subprocess
 from sys import platform as system_platform
+import threading
 
 # Global variables
+clip_that = False
 seconds_to_save = 60
 audio_rate = 44100
 audio_buffer = 1024
-
-# Want to print this at end, so global
-filename = ""
 
 # Initialize the webcam and audio stream
 webcam = cv2.VideoCapture(0)
 audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
 
-def save_button_pressed():
-    return keyboard.is_pressed('x')
-
 def clip_loop(webcam, audio_stream):
-    global seconds_to_save, audio_rate, audio_buffer
+    global clip_that, seconds_to_save, audio_rate, audio_buffer
     
     # Initialize variables to store the last minute of video and audio
     video_frames = []
@@ -46,12 +42,14 @@ def clip_loop(webcam, audio_stream):
             video_frames.pop(0)
             audio_samples.pop(0)
         
-        # Check if the save button has been pressed
-        if save_button_pressed():
+        # Check if the save condition has been hit
+        if clip_that:
+            # Untoggle for next clip
+            clip_that = False
+            
             # Quick date time for filename
             now = datetime.now()
             dt_string = now.strftime("%d-%m-%Y %H-%M-%S")
-            global filename
             filename = "Clip " + dt_string
             
             # Initialize the video writer
@@ -87,10 +85,47 @@ def clip_loop(webcam, audio_stream):
                 removecmd = "del *TEMP*"
             subprocess.call(removecmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
             
-            break
+            print("Enjoy your video! (" + filename + ")")
+
+def speech_loop():
+    global clip_that
+    
+    import speech_recognition as sr
+
+    key_phrase = "Alexa clip that"
+
+    key_phrase = key_phrase.replace(" ", "")
+    key_phrase = key_phrase.lower()
+
+    while True:
+
+        r = sr.Recognizer()
+        mic = sr.Microphone(device_index=1)
+
+        with mic as source:
+            r.adjust_for_ambient_noise(source)
+            audio = r.listen(source)
+
+        result = None
+
+        try:
+            result = r.recognize_google(audio)
+        except:
+            pass
+
+        if result is None:
+            continue
+        
+        if key_phrase in result.replace(" ", "").lower():
+            global clip_that # in clipper.py
+            clip_that = True
 
 # Inform of capturing
 print("Finished initializing: taking running video")
+
+# Start speech rec thread
+alexa = threading.Thread(target=speech_loop)
+alexa.start()
 
 # Start the webcam and audio stream
 clip_loop(webcam, audio_stream)
@@ -101,4 +136,4 @@ audio_stream.stop_stream()
 audio_stream.close()
 
 # Bye
-print("Enjoy your video! (" + filename + ")")
+print("Goodbye!")
