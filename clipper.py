@@ -9,6 +9,7 @@ import subprocess
 from sys import platform as system_platform
 import threading
 import keyboard
+import time
 
 # Global variables
 running = True
@@ -128,6 +129,8 @@ def abort_loop():
     while running:
         if keyboard.is_pressed('q'):
             running = False
+        else:
+            time.sleep(0.25)
 
 # Inform of capturing
 print("Finished initializing: taking running video")
