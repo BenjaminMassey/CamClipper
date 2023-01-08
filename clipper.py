@@ -8,8 +8,10 @@ import ffmpeg
 import subprocess
 from sys import platform as system_platform
 import threading
+import keyboard
 
 # Global variables
+running = True
 clip_that = False
 seconds_to_save = 60
 audio_rate = 44100
@@ -20,14 +22,14 @@ webcam = cv2.VideoCapture(0)
 audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
 
 def clip_loop(webcam, audio_stream):
-    global clip_that, seconds_to_save, audio_rate, audio_buffer
+    global running, clip_that, seconds_to_save, audio_rate, audio_buffer
     
     # Initialize variables to store the last minute of video and audio
     video_frames = []
     audio_samples = []
     
     # Start capturing frames and audio from the webcam feed
-    while True:
+    while running:
         # Get the current frame and audio sample from the webcam feed
         ret, frame = webcam.read()
         assert ret
@@ -88,7 +90,7 @@ def clip_loop(webcam, audio_stream):
             print("Enjoy your video! (" + filename + ")")
 
 def speech_loop():
-    global clip_that
+    global running, clip_that
     
     import speech_recognition as sr
 
@@ -97,7 +99,7 @@ def speech_loop():
     key_phrase = key_phrase.replace(" ", "")
     key_phrase = key_phrase.lower()
 
-    while True:
+    while running:
 
         r = sr.Recognizer()
         mic = sr.Microphone(device_index=1)
@@ -117,8 +119,15 @@ def speech_loop():
             continue
         
         if key_phrase in result.replace(" ", "").lower():
-            global clip_that # in clipper.py
+            global clip_that
             clip_that = True
+
+def abort_loop():
+    global running
+
+    while running:
+        if keyboard.is_pressed('q'):
+            running = False
 
 # Inform of capturing
 print("Finished initializing: taking running video")
@@ -126,6 +135,10 @@ print("Finished initializing: taking running video")
 # Start speech rec thread
 alexa = threading.Thread(target=speech_loop)
 alexa.start()
+
+# Start abort thread
+abort = threading.Thread(target=abort_loop)
+abort.start()
 
 # Start the webcam and audio stream
 clip_loop(webcam, audio_stream)
