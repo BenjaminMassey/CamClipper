@@ -8,11 +8,8 @@ import ffmpeg
 import subprocess
 from sys import platform as system_platform
 import threading
-import keyboard
-import time
 
 # Global variables
-running = True
 clip_that = False
 seconds_to_save = 60
 audio_rate = 44100
@@ -20,34 +17,21 @@ audio_buffer = 1024
 
 # Initialize the webcam and audio stream
 webcam = cv2.VideoCapture(0)
-audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, \
-                                      rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
+audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
 
-def clip_loop():
-    global running, webcam, audio_stream, clip_that, seconds_to_save, audio_rate, audio_buffer
+def clip_loop(webcam, audio_stream):
+    global clip_that, seconds_to_save, audio_rate, audio_buffer
     
     # Initialize variables to store the last minute of video and audio
     video_frames = []
     audio_samples = []
     
     # Start capturing frames and audio from the webcam feed
-    while running:
+    while True:
         # Get the current frame and audio sample from the webcam feed
         ret, frame = webcam.read()
-        if not ret:
-            print("Failure with webcam, trying again...")
-            audio_stream.stop_stream()
-            audio_stream.close()
-            webcam.release()
-            webcam = cv2.VideoCapture(0)
-            audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, \
-                                          rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
-            continue
+        assert ret
         audio_data = audio_stream.read(audio_buffer)
-
-        # Show webcam
-        cv2.imshow("Webcam Feed", frame)
-        cv2.waitKey(1)
         
         # Add the frame and audio sample to their respective lists
         video_frames.append(frame)
@@ -103,14 +87,8 @@ def clip_loop():
             
             print("Enjoy your video! (" + filename + ")")
 
-        
-        # Release the webcam and audio stream
-        webcam.release()
-        audio_stream.stop_stream()
-        audio_stream.close()
-
 def speech_loop():
-    global running, clip_that
+    global clip_that
     
     import speech_recognition as sr
 
@@ -119,7 +97,7 @@ def speech_loop():
     key_phrase = key_phrase.replace(" ", "")
     key_phrase = key_phrase.lower()
 
-    while running:
+    while True:
 
         r = sr.Recognizer()
         mic = sr.Microphone(device_index=1)
@@ -139,6 +117,7 @@ def speech_loop():
             continue
         
         if key_phrase in result.replace(" ", "").lower():
+            global clip_that # in clipper.py
             clip_that = True
 
 # Inform of capturing
@@ -148,15 +127,13 @@ print("Finished initializing: taking running video")
 alexa = threading.Thread(target=speech_loop)
 alexa.start()
 
-# Start the capture thread
-capture = threading.Thread(target=clip_loop)
-capture.start()
+# Start the webcam and audio stream
+clip_loop(webcam, audio_stream)
 
-while running:
-    if keyboard.is_pressed('x'):
-        running = False
-    else:
-        time.sleep(0.25)
+# Release the webcam and audio stream
+webcam.release()
+audio_stream.stop_stream()
+audio_stream.close()
 
+# Bye
 print("Goodbye!")
-quit()
