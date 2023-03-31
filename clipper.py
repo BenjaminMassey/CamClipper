@@ -4,7 +4,10 @@ import numpy as np
 import pyaudio
 from datetime import datetime
 import wave
-import ffmpeg
+from moviepy.editor import *
+from pydub import AudioSegment
+from pydub.playback import play
+from pydub.effects import speedup
 import subprocess
 from sys import platform as system_platform
 import threading
@@ -15,15 +18,28 @@ import time
 running = True
 clip_that = False
 seconds_to_save = 60
-audio_rate = 44100
-audio_buffer = 1024
+audio_rate = 48000
+audio_buffer = 2048
+auto_audio_delay = False # use additional calculated delay (experimental)
+audio_delay = 0 # addition of silence at beginning: for syncing
+audio_cut = 0 # removal of audio from beginning: for adjustment
 
-# Initialize the webcam and audio stream
+# Initialize the webcam and audio stream, calc delay
 webcam = cv2.VideoCapture(0)
+video_time = datetime.now()
+
 audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
+audio_time = datetime.now()
+
+if (auto_audio_delay):
+    audio_delay = (audio_time - video_time).total_seconds()
+    print("AUDIO DELAY DETECTED OF", audio_delay, "SECONDS")
+
+# Inform of capturing
+print("Finished initializing: taking running video")
 
 def clip_loop(webcam, audio_stream):
-    global running, clip_that, seconds_to_save, audio_rate, audio_buffer
+    global running, clip_that, seconds_to_save, audio_rate, audio_buffer, audio_delay
     
     # Initialize variables to store the last minute of video and audio
     video_frames = []
@@ -46,7 +62,7 @@ def clip_loop(webcam, audio_stream):
             audio_samples.pop(0)
         
         # Check if the save condition has been hit
-        if clip_that:
+        if clip_that or keyboard.is_pressed('c'):
             # Untoggle for next clip
             clip_that = False
             
@@ -75,13 +91,26 @@ def clip_loop(webcam, audio_stream):
             # Save the last minute of audio to the output file
             np_audio = np.array(audio_samples, dtype=np.int16)
             audio_file.writeframes(np_audio)
+            audio_dur = audio_file.getnframes() / audio_rate
+            audio_ratio = audio_dur / seconds_to_save
             audio_file.close()
             
+            # Adjust for audio delay https://stackoverflow.com/a/46791870
+            audio_in_file = "./" + filename + " TEMP.wav"
+            audio_out_file = "./" + filename + " TEMP ADJUSTED.wav"
+            delay_segment = AudioSegment.silent(duration=(audio_delay * 1000))
+            temp_audio = AudioSegment.from_wav(audio_in_file)
+            the_audio = speedup(temp_audio, audio_ratio, audio_ratio * 100)
+            final_adjusted = delay_segment + the_audio[(audio_cut * 1000):]
+            final_adjusted.export(audio_out_file, format="wav")
+            
             # Combine the video and audio into a single file
-            video_temp = ffmpeg.input("./" + filename + " TEMP.mp4")
-            audio_temp = ffmpeg.input("./" + filename + " TEMP.wav")
-            ffmpeg.concat(video_temp, audio_temp, v=1, a=1).output("./" + filename + ".mp4").run(overwrite_output=True)
-
+            movie_video = VideoFileClip("./" + filename + " TEMP.mp4")
+            movie_audio_raw = AudioFileClip("./" + filename + " TEMP ADJUSTED.wav")
+            movie_audio = CompositeAudioClip([movie_audio_raw])
+            movie_video.audio = movie_audio
+            movie_video.write_videofile("./" + filename + ".mp4")
+            
             # Cleanup temp files
             removecmd = "rm *TEMP*"
             if system_platform == "win32":
@@ -132,9 +161,6 @@ def abort_loop():
         else:
             time.sleep(0.25)
 
-# Inform of capturing
-print("Finished initializing: taking running video")
-
 # Start speech rec thread
 alexa = threading.Thread(target=speech_loop)
 alexa.start()
@@ -153,3 +179,4 @@ audio_stream.close()
 
 # Bye
 print("Goodbye!")
+quit()
