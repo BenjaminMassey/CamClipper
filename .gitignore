@@ -1,3 +1,4 @@
 *.mp4
+*.bat
 ffmpeg.exe
 __pycache__/

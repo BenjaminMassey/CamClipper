@@ -17,20 +17,22 @@ import time
 
 # Command line arguments
 
+key_phrase = "Mario clip that"
 seconds_to_save = 10
 res_x = 640
 res_y = 480
 
-error_msg = "Expected usage: \"python clipper.py [seconds] [resolution.x] [resolution.y]\""
+error_msg = "Expected usage: \"python clipper.py [phrase] [seconds] [resolution.x] [resolution.y]\""
 
-if (len(sys.argv)) != 4:
+if (len(sys.argv)) != 5:
     print(error_msg)
     quit()
 else:
     try:
-        seconds_to_save = int(sys.argv[1])
-        res_x = int(sys.argv[2])
-        res_y = int(sys.argv[3])
+        key_phrase = str(sys.argv[1])
+        seconds_to_save = int(sys.argv[2])
+        res_x = int(sys.argv[3])
+        res_y = int(sys.argv[4])
     except:
         print(error_msg)
         quit()
@@ -141,11 +143,9 @@ def clip_loop(webcam, audio_stream):
             print("Enjoy your video! (" + filename + ")")
 
 def speech_loop():
-    global running, clip_that
+    global running, clip_that, key_phrase
     
     import speech_recognition as sr
-
-    key_phrase = "Alexa clip that"
 
     key_phrase = key_phrase.replace(" ", "")
     key_phrase = key_phrase.lower()
