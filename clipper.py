@@ -9,15 +9,35 @@ from pydub import AudioSegment
 from pydub.playback import play
 from pydub.effects import speedup
 import subprocess
+import sys
 from sys import platform as system_platform
 import threading
 import keyboard
 import time
 
+# Command line arguments
+
+seconds_to_save = 10
+res_x = 640
+res_y = 480
+
+error_msg = "Expected usage: \"python clipper.py [seconds] [resolution.x] [resolution.y]\""
+
+if (len(sys.argv)) != 4:
+    print(error_msg)
+    quit()
+else:
+    try:
+        seconds_to_save = int(sys.argv[1])
+        res_x = int(sys.argv[2])
+        res_y = int(sys.argv[3])
+    except:
+        print(error_msg)
+        quit()
+
 # Global variables
 running = True
 clip_that = False
-seconds_to_save = 60
 audio_rate = 48000
 audio_buffer = 2048
 auto_audio_delay = False # use additional calculated delay (experimental)
@@ -26,8 +46,9 @@ audio_cut = 0 # removal of audio from beginning: for adjustment
 
 # Initialize the webcam and audio stream, calc delay
 webcam = cv2.VideoCapture(0)
+webcam.set(cv2.CAP_PROP_FRAME_WIDTH, res_x)
+webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, res_y)
 video_time = datetime.now()
-
 audio_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=audio_rate, input=True, frames_per_buffer=audio_buffer)
 audio_time = datetime.now()
 
